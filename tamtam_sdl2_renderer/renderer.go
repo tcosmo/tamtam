@@ -122,7 +122,7 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 			}
 
 			assemblyRenderer.sdlRenderer.SetRenderTarget(assemblyRenderer.textureCache[textureLeftCornerCoord])
-			assemblyRenderer.sdlRenderer.SetDrawColor(BACKGROUND_COLOR[0], BACKGROUND_COLOR[1], BACKGROUND_COLOR[2], BACKGROUND_COLOR[3])
+			assemblyRenderer.sdlRenderer.SetDrawColor(100, 0, 0, BACKGROUND_COLOR[3])
 			assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{0, 0, TEXTURE_SIZE, TEXTURE_SIZE})
 			assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
 		}
@@ -142,7 +142,7 @@ func (assemblyRenderer *SDL2AssemblyRenderer) Render(uiParams UIParameters) {
 			continue
 		}
 
-		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0] - uiParams.Translation[0]), float32(-1*textureLeftCornerCoord[1] - uiParams.Translation[1]), float32(TEXTURE_SIZE * uiParams.Zoom_factor), float32(TEXTURE_SIZE * uiParams.Zoom_factor)}, 0, nil, sdl.FLIP_VERTICAL)
+		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Translation[0]) * uiParams.Zoom_factor, float32(-1*textureLeftCornerCoord[1]-uiParams.Translation[1]) * uiParams.Zoom_factor, float32(TEXTURE_SIZE * uiParams.Zoom_factor), float32(TEXTURE_SIZE * uiParams.Zoom_factor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}
 }
 
