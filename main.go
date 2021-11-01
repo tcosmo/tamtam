@@ -23,7 +23,7 @@ func modifyTexture(renderer *sdl.Renderer, texture *sdl.Texture) {
 }
 
 func newAssembly() tt.TileAssembly {
-	SIZE := 20
+	SIZE := 200
 	tileSet, err := tt.NewCrtTileSet(2, 3)
 
 	if err != nil {
@@ -44,15 +44,15 @@ func newAssembly() tt.TileAssembly {
 
 	var assembly = tt.NewAssembly(tileSet, initialAssembly, 2)
 
-	didGrow, err := assembly.GrowSync(true)
+	// didGrow, err := assembly.GrowSync(true)
 
-	for didGrow && err == nil {
-		didGrow, err = assembly.GrowSync(true)
-	}
+	// for didGrow && err == nil {
+	// 	didGrow, err = assembly.GrowSync(true)
+	// }
 
-	if err != nil {
-		panic(err)
-	}
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	return assembly
 }
@@ -114,8 +114,16 @@ func main() {
 					case sdl.K_a:
 						uiParameters.Zoom_factor /= 1.5
 						break
-					case sdl.K_p:
-						fmt.Println(frameTime, totalFrameTicks, totalFrames, framePerf)
+
+					case sdl.K_n:
+						assembly.GrowSync(true)
+						assemblyRender.UpdateTextures()
+						break
+
+					case sdl.K_s:
+						fmt.Println(" Summary\n", "========\n", "Number of tiles:", assembly.Size(), "\n", "Number of textures:", assemblyRender.CountTextures())
+						break
+					case sdl.K_f:
 						fmt.Println("Current FPS: ", 1/frameTime)
 						fmt.Println("Average FPS: ", 1000/(totalFrameTicks/totalFrames))
 						fmt.Println("Current Perf: ", framePerf)

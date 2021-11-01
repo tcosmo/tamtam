@@ -115,7 +115,7 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 			var err error
 			assemblyRenderer.textureCache[textureLeftCornerCoord], err = assemblyRenderer.sdlRenderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, TEXTURE_SIZE, TEXTURE_SIZE)
 
-			fmt.Println("Creating texture with left corner:", textureLeftCornerCoord)
+			fmt.Println("Creating texture with bottom left corner:", textureLeftCornerCoord)
 
 			if err != nil {
 				panic(err)
@@ -138,12 +138,12 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 func (assemblyRenderer *SDL2AssemblyRenderer) Render(uiParams UIParameters) {
 	for textureLeftCornerCoord, texture := range assemblyRenderer.textureCache {
 
-		if textureLeftCornerCoord[0] != 0 && textureLeftCornerCoord[1] != 0 {
-			continue
-		}
-
-		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Translation[0]) * uiParams.Zoom_factor, float32(-1*textureLeftCornerCoord[1]-uiParams.Translation[1]) * uiParams.Zoom_factor, float32(TEXTURE_SIZE * uiParams.Zoom_factor), float32(TEXTURE_SIZE * uiParams.Zoom_factor)}, 0, nil, sdl.FLIP_VERTICAL)
+		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Translation[0]) * uiParams.Zoom_factor, float32(-1*textureLeftCornerCoord[1]+uiParams.Translation[1]) * uiParams.Zoom_factor, float32(TEXTURE_SIZE * uiParams.Zoom_factor), float32(TEXTURE_SIZE * uiParams.Zoom_factor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}
+}
+
+func (assemblyRenderer SDL2AssemblyRenderer) CountTextures() int {
+	return len(assemblyRenderer.textureCache)
 }
 
 func (assemblyRenderer *SDL2AssemblyRenderer) Destroy() {
