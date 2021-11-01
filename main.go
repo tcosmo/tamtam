@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	tt "tamtam/tamtam"
 	ttr "tamtam/tamtam_sdl2_renderer"
 
@@ -81,8 +82,21 @@ func main() {
 	assemblyRender := ttr.NewSDL2AssemblyRenderer(&assembly, renderer)
 	defer assemblyRender.Destroy()
 
+	uiParameters := ttr.NewUIParameters()
+
 	running := true
+
+	totalFrameTicks := 0
+	totalFrames := 0
+	var framePerf uint64 = 0
+	var frameTime float32 = 0
+
 	for running {
+		totalFrames += 1
+
+		startTicks := sdl.GetTicks()
+		startPerf := sdl.GetPerformanceCounter()
+
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch t := event.(type) {
 			case *sdl.QuitEvent:
@@ -94,10 +108,31 @@ func main() {
 				switch t.Type {
 				case sdl.KEYDOWN:
 					switch t.Keysym.Sym {
+					case sdl.K_z:
+						uiParameters.Zoom_factor *= 1.5
+						break
 					case sdl.K_a:
-						//modifyTexture(renderer, texture)
+						uiParameters.Zoom_factor /= 1.5
+						break
+					case sdl.K_p:
+						fmt.Println(frameTime, totalFrameTicks, totalFrames, framePerf)
+						fmt.Println("Current FPS: ", 1/frameTime)
+						fmt.Println("Average FPS: ", 1000/(totalFrameTicks/totalFrames))
+						fmt.Println("Current Perf: ", framePerf)
+					case sdl.K_LEFT:
+						uiParameters.Translation[0] -= ttr.TILE_SIZE
+						break
+					case sdl.K_RIGHT:
+						uiParameters.Translation[0] += ttr.TILE_SIZE
+						break
+					case sdl.K_UP:
+						uiParameters.Translation[1] += ttr.TILE_SIZE
+						break
+					case sdl.K_DOWN:
+						uiParameters.Translation[1] -= ttr.TILE_SIZE
 						break
 					}
+
 					break
 				}
 
@@ -106,8 +141,18 @@ func main() {
 		}
 
 		renderer.SetDrawColor(ttr.BACKGROUND_COLOR[0], ttr.BACKGROUND_COLOR[1], ttr.BACKGROUND_COLOR[2], ttr.BACKGROUND_COLOR[3])
+
 		renderer.Clear()
-		assemblyRender.Render()
+		assemblyRender.Render(uiParameters)
+
 		renderer.Present()
+
+		sdl.Delay(20)
+		endTicks := sdl.GetTicks()
+		endPerf := sdl.GetPerformanceCounter()
+		framePerf = endPerf - startPerf
+		frameTime = float32(endTicks-startTicks) / 1000
+		totalFrameTicks += int(endTicks) - int(startTicks)
+
 	}
 }

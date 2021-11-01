@@ -108,7 +108,6 @@ func (assemblyRenderer *SDL2AssemblyRenderer) renderTile(texture *sdl.Texture, t
 }
 
 func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
-
 	for _, tileAndPos := range assemblyRenderer.assembly.GetNewlyAddedTiles() {
 		textureLeftCornerCoord := getTileTextureLeftCornerCoord(tileAndPos.Pos)
 		// If the texture does not exists we create it
@@ -121,6 +120,11 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 			if err != nil {
 				panic(err)
 			}
+
+			assemblyRenderer.sdlRenderer.SetRenderTarget(assemblyRenderer.textureCache[textureLeftCornerCoord])
+			assemblyRenderer.sdlRenderer.SetDrawColor(BACKGROUND_COLOR[0], BACKGROUND_COLOR[1], BACKGROUND_COLOR[2], BACKGROUND_COLOR[3])
+			assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{0, 0, TEXTURE_SIZE, TEXTURE_SIZE})
+			assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
 		}
 
 		assemblyRenderer.renderTile(assemblyRenderer.textureCache[textureLeftCornerCoord], tileAndPos.Tile, tileAndPos.Pos)
@@ -129,9 +133,16 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 	assemblyRenderer.assembly.FlushNewlyAddedTiles()
 }
 
-func (assemblyRenderer *SDL2AssemblyRenderer) Render() {
+// Rendering the scene and correcting here the difference in convention
+// between our screen coordinates and SDL's.
+func (assemblyRenderer *SDL2AssemblyRenderer) Render(uiParams UIParameters) {
 	for textureLeftCornerCoord, texture := range assemblyRenderer.textureCache {
-		assemblyRenderer.sdlRenderer.Copy(texture, nil, &sdl.Rect{int32(textureLeftCornerCoord[0]), int32(textureLeftCornerCoord[1]), TEXTURE_SIZE, TEXTURE_SIZE})
+
+		if textureLeftCornerCoord[0] != 0 && textureLeftCornerCoord[1] != 0 {
+			continue
+		}
+
+		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0] - uiParams.Translation[0]), float32(-1*textureLeftCornerCoord[1] - uiParams.Translation[1]), float32(TEXTURE_SIZE * uiParams.Zoom_factor), float32(TEXTURE_SIZE * uiParams.Zoom_factor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}
 }
 
