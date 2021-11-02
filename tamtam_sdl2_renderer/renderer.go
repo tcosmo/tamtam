@@ -5,11 +5,12 @@ import (
 	"strconv"
 	tt "tamtam/tamtam"
 
+	"github.com/veandco/go-sdl2/gfx"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-const TEXTURE_SIZE = 256
-const TILE_SIZE = 8
+const TEXTURE_SIZE = 1024
+const TILE_SIZE = 64
 
 var BACKGROUND_COLOR = [4]uint8{0.4 * 255, 0.4 * 255, 0.4 * 255}
 var COLOR_WHEEL = [][4]uint8{{229, 198, 146, 255}, {20, 196, 52, 255}, {227, 121, 151, 255}}
@@ -84,6 +85,9 @@ func (assemblyRenderer *SDL2AssemblyRenderer) renderTile(texture *sdl.Texture, t
 
 	coordInTexture := textureCoordinates{screenCoord[0] - textureLeftCornerCoord[0], screenCoord[1] - textureLeftCornerCoord[1]}
 
+	successiveSquareVertices := [4][2]int32{{
+		int32(coordInTexture[0]), int32(coordInTexture[1] + TILE_SIZE)}, {int32(coordInTexture[0] + TILE_SIZE), int32(coordInTexture[1] + TILE_SIZE)}, {int32(coordInTexture[0] + TILE_SIZE), int32(coordInTexture[1])}, {int32(coordInTexture[0]), int32(coordInTexture[1])}}
+
 	for i := 0; i < 4; i += 1 {
 
 		glue := tile[i]
@@ -100,9 +104,30 @@ func (assemblyRenderer *SDL2AssemblyRenderer) renderTile(texture *sdl.Texture, t
 			color = COLOR_WHEEL[glue_int]
 		}
 
-		assemblyRenderer.sdlRenderer.SetDrawColor(color[0], color[1], color[2], color[3])
-		assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{int32(coordInTexture[0]), int32(coordInTexture[1]), TILE_SIZE, TILE_SIZE})
+		assemblyRenderer.sdlRenderer.SetDrawColor(0, 255, 0, 255)
+
+		assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{0, 0, TILE_SIZE, TILE_SIZE})
+
+		if glue != tt.NULL_GLUE {
+			gfx.FilledTrigonRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[i][0], successiveSquareVertices[i][1], successiveSquareVertices[(i+1)%4][0], successiveSquareVertices[(i+1)%4][1], int32(coordInTexture[0]+TILE_SIZE/2), int32(coordInTexture[1]+TILE_SIZE/2), color[0], color[1], color[2], color[3])
+
+			// gfx.TrigonRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[i][0], successiveSquareVertices[i][1], successiveSquareVertices[(i+1)%4][0], successiveSquareVertices[(i+1)%4][1], int32(coordInTexture[0]+TILE_SIZE/2), int32(coordInTexture[1]+TILE_SIZE/2), 0, 0, 0, color[3])
+
+		}
+
 	}
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, 0, 0, 0, 255)
 
 	assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
 }
@@ -138,7 +163,7 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 func (assemblyRenderer *SDL2AssemblyRenderer) Render(uiParams UIParameters) {
 	for textureLeftCornerCoord, texture := range assemblyRenderer.textureCache {
 
-		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Translation[0]) * uiParams.Zoom_factor, float32(-1*textureLeftCornerCoord[1]+uiParams.Translation[1]) * uiParams.Zoom_factor, float32(TEXTURE_SIZE * uiParams.Zoom_factor), float32(TEXTURE_SIZE * uiParams.Zoom_factor)}, 0, nil, sdl.FLIP_VERTICAL)
+		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}
 }
 

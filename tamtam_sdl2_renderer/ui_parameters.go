@@ -1,16 +1,66 @@
 package tamtam_sdl2_renderer
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
 	tt "tamtam/tamtam"
 )
 
+const CAMERA_PARAMETERS_DOT_FILE = ".tamtam_camera"
+
+type CameraParameters struct {
+	Translation tt.Vec2Di `json:"translation"`
+	ZoomFactor  float32   `json:"zoom_factor"`
+}
+
 type UIParameters struct {
-	Translation tt.Vec2Di
-	Zoom_factor float32
-	Glue_colors map[string][]uint8
+	Camera     CameraParameters   `json:"camera"`
+	GlueColors map[string][]uint8 `json:"glue_colors"`
 }
 
 func NewUIParameters() (toReturn UIParameters) {
-	toReturn.Zoom_factor = 1
+
+	toReturn.Camera.ZoomFactor = 1
+	if _, err := os.Stat(CAMERA_PARAMETERS_DOT_FILE); err == nil {
+		fmt.Println("Loading ", CAMERA_PARAMETERS_DOT_FILE)
+		file, err := ioutil.ReadFile(CAMERA_PARAMETERS_DOT_FILE)
+
+		if err != nil {
+			fmt.Println(err)
+			return toReturn
+		}
+
+		var camera CameraParameters
+		err = json.Unmarshal([]byte(file), &camera)
+
+		if err != nil {
+			fmt.Println(err)
+			return toReturn
+		}
+
+		toReturn.Camera = camera
+	}
+
 	return toReturn
+}
+
+func (uiParams UIParameters) DumpCamera() {
+	b, err := json.MarshalIndent(uiParams.Camera, "", "  ")
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println("Writing camera parameters to", CAMERA_PARAMETERS_DOT_FILE)
+	fmt.Println(string(b))
+
+	err = ioutil.WriteFile(CAMERA_PARAMETERS_DOT_FILE, b, 0644)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }

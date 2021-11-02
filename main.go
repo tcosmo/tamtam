@@ -8,22 +8,8 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func modifyTexture(renderer *sdl.Renderer, texture *sdl.Texture) {
-	renderer.SetRenderTarget(texture)
-
-	renderer.SetDrawColor(255, 255, 255, 255)
-	for i := 0; i < 256; i += 1 {
-		for j := 0; j < 256; j += 1 {
-			renderer.SetDrawColor(uint8(i/4), uint8(i/2), uint8(i/3), 255)
-			renderer.DrawPoint(int32(i), int32(j))
-		}
-	}
-
-	renderer.SetRenderTarget(nil)
-}
-
 func newAssembly() tt.TileAssembly {
-	SIZE := 200
+	SIZE := 20
 	tileSet, err := tt.NewCrtTileSet(2, 3)
 
 	if err != nil {
@@ -44,15 +30,15 @@ func newAssembly() tt.TileAssembly {
 
 	var assembly = tt.NewAssembly(tileSet, initialAssembly, 2)
 
-	// didGrow, err := assembly.GrowSync(true)
+	didGrow, err := assembly.GrowSync(true)
 
-	// for didGrow && err == nil {
-	// 	didGrow, err = assembly.GrowSync(true)
-	// }
+	for didGrow && err == nil {
+		didGrow, err = assembly.GrowSync(true)
+	}
 
-	// if err != nil {
-	// 	panic(err)
-	// }
+	if err != nil {
+		panic(err)
+	}
 
 	return assembly
 }
@@ -64,7 +50,7 @@ func main() {
 	}
 	defer sdl.Quit()
 
-	window, err := sdl.CreateWindow("test", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
+	window, err := sdl.CreateWindow("tamtam - v0.0.1", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
 		800, 600, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(err)
@@ -109,10 +95,10 @@ func main() {
 				case sdl.KEYDOWN:
 					switch t.Keysym.Sym {
 					case sdl.K_z:
-						uiParameters.Zoom_factor *= 1.5
+						uiParameters.Camera.ZoomFactor *= 1.5
 						break
 					case sdl.K_a:
-						uiParameters.Zoom_factor /= 1.5
+						uiParameters.Camera.ZoomFactor /= 1.5
 						break
 
 					case sdl.K_n:
@@ -127,17 +113,24 @@ func main() {
 						fmt.Println("Current FPS: ", 1/frameTime)
 						fmt.Println("Average FPS: ", 1000/(totalFrameTicks/totalFrames))
 						fmt.Println("Current Perf: ", framePerf)
+					// Dumping camera parameters
+					case sdl.K_d:
+						uiParameters.DumpCamera()
+						break
 					case sdl.K_LEFT:
-						uiParameters.Translation[0] -= ttr.TILE_SIZE
+						uiParameters.Camera.Translation[0] -= ttr.TILE_SIZE
 						break
 					case sdl.K_RIGHT:
-						uiParameters.Translation[0] += ttr.TILE_SIZE
+						uiParameters.Camera.Translation[0] += ttr.TILE_SIZE
 						break
 					case sdl.K_UP:
-						uiParameters.Translation[1] += ttr.TILE_SIZE
+						uiParameters.Camera.Translation[1] += ttr.TILE_SIZE
 						break
 					case sdl.K_DOWN:
-						uiParameters.Translation[1] -= ttr.TILE_SIZE
+						uiParameters.Camera.Translation[1] -= ttr.TILE_SIZE
+						break
+					case sdl.K_ESCAPE:
+						running = false
 						break
 					}
 
