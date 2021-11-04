@@ -11,7 +11,7 @@ type PosAndTile struct {
 }
 
 type TileAssembly struct {
-	tileSet                      TileSet
+	TileSet                      TileSet
 	tileMap                      TileMap
 	threshold                    int
 	emptyPositionsAboveThreshold map[Vec2Di]bool
@@ -24,7 +24,7 @@ func (assembly TileAssembly) MarshalJSON() ([]byte, error) {
 		TileMap   TileMap `json:"tile_map"`
 		Threshold int     `json:"threshold"`
 	}{
-		TileSet:   assembly.tileSet,
+		TileSet:   assembly.TileSet,
 		TileMap:   assembly.tileMap,
 		Threshold: assembly.threshold,
 	})
@@ -49,7 +49,7 @@ func (assembly *TileAssembly) UnmarshalJSON(b []byte) error {
 }
 
 func NewAssembly(tileSet TileSet, initialTiles map[Vec2Di]SquareGlues, threshold int) (assembly TileAssembly) {
-	assembly.tileSet = tileSet
+	assembly.TileSet = tileSet
 	assembly.threshold = threshold
 
 	assembly.tileMap = make(map[Vec2Di]SquareGlues)
@@ -107,7 +107,7 @@ func (assembly *TileAssembly) GrowSync(directed bool) (bool, error) {
 	var toAdd []PosAndTile
 
 	for pos := range assembly.emptyPositionsAboveThreshold {
-		var matches = assembly.tileSet.MatchTiles(assembly.neighboringGlues(pos), assembly.threshold)
+		var matches = assembly.TileSet.MatchTiles(assembly.neighboringGlues(pos), assembly.threshold)
 
 		if len(matches) > 1 && directed {
 			return false, errors.New("two different tiles fit the same position, this is not allowed in directed setting")
@@ -127,7 +127,7 @@ func (assembly *TileAssembly) GrowSync(directed bool) (bool, error) {
 }
 
 func (assembly TileAssembly) IsEqualTo(otherAssembly TileAssembly) bool {
-	return assembly.threshold == otherAssembly.threshold && assembly.tileSet.IsEqualTo(otherAssembly.tileSet) && assembly.tileMap.IsEqualTo(otherAssembly.tileMap)
+	return assembly.threshold == otherAssembly.threshold && assembly.TileSet.IsEqualTo(otherAssembly.TileSet) && assembly.tileMap.IsEqualTo(otherAssembly.tileMap)
 }
 
 // Returns the tiles (with their position) that were added at the last round of growth

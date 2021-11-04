@@ -21,11 +21,16 @@ func (glues SquareGlues) IsEqualTo(otherGlues SquareGlues) bool {
 	return true
 }
 
-type TileSet []SquareGlues
+type TileSet map[string]SquareGlues
 
 func (tileSet TileSet) IsEqualTo(otherTileSet TileSet) bool {
-	for i, val := range tileSet {
-		if otherTileSet[i] != val {
+
+	if len(tileSet) != len(otherTileSet) {
+		return false
+	}
+
+	for name, val := range tileSet {
+		if otherTileSet[name] != val {
 			return false
 		}
 	}
@@ -57,13 +62,27 @@ func (tileSet TileSet) MatchTiles(glueConstraints SquareGlues, threshold int) (m
 // Creates a Chinese Remainder Tile Set
 func NewCrtTileSet(p int, q int) (tileSet TileSet, err error) {
 
+	tileSet = make(TileSet)
+
 	if !primes.Coprime(p, q) {
 		return tileSet, errors.New("p and q must be co-primes")
 	}
 
 	for i := 0; i < p*q; i += 1 {
-		tileSet = append(tileSet, SquareGlues{strconv.FormatInt(int64(i)/3, 10), strconv.FormatInt(int64(i)%3, 10), strconv.FormatInt(int64(i)%2, 10), strconv.FormatInt(int64(i)/2, 10)})
+		tileSet[strconv.Itoa(i)] = SquareGlues{strconv.FormatInt(int64(i)/3, 10), strconv.FormatInt(int64(i)%3, 10), strconv.FormatInt(int64(i)%2, 10), strconv.FormatInt(int64(i)/2, 10)}
 	}
 
 	return tileSet, nil
+}
+
+// Returns the name of the tile or error if tile not in tile set
+func (tileSet TileSet) GetTileName(tile SquareGlues) (tileName string, err error) {
+
+	for name, tileType := range tileSet {
+		if tileType.IsEqualTo(tile) {
+			return name, nil
+		}
+	}
+
+	return "", errors.New("The tile type is not in the tile set")
 }

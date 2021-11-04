@@ -6,6 +6,7 @@ import (
 	ttr "tamtam/tamtam_sdl2_renderer"
 
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 func newAssembly() tt.TileAssembly {
@@ -70,8 +71,13 @@ func main() {
 	}
 	defer sdl.Quit()
 
+	if err := ttf.Init(); err != nil {
+		panic(err)
+	}
+	defer sdl.Quit()
+
 	window, err := sdl.CreateWindow("tamtam - v0.0.1", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED,
-		800, 600, sdl.WINDOW_SHOWN)
+		1200, 800, sdl.WINDOW_SHOWN)
 	if err != nil {
 		panic(err)
 	}
@@ -150,6 +156,10 @@ func main() {
 
 					case sdl.K_g:
 						uiParameters.ShowGrid = !uiParameters.ShowGrid
+						break
+
+					case sdl.K_t:
+						uiParameters.ShowTilesText = !uiParameters.ShowTilesText
 						break
 
 					// Dumping camera parameters

@@ -7,6 +7,7 @@ import (
 
 	"github.com/veandco/go-sdl2/gfx"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 const TEXTURE_SIZE = 1024
@@ -37,10 +38,12 @@ type textureCoordinates tt.Vec2Di
 // which are mapped to screen positions (screenCoordinates) [-1*TILE_SIZE, 2*TILE_SIZE] and then rendered to
 // the appropriate texture, here the texture with coordinates [0,0].
 type SDL2AssemblyRenderer struct {
-	sdlRenderer       *sdl.Renderer
-	assembly          *tt.TileAssembly
-	tilesTextureCache map[screenCoordinates]*sdl.Texture
-	gridTextureCache  map[screenCoordinates]*sdl.Texture
+	sdlRenderer           *sdl.Renderer
+	assembly              *tt.TileAssembly
+	font                  *ttf.Font
+	tilesTextureCache     map[screenCoordinates]*sdl.Texture
+	gridTextureCache      map[screenCoordinates]*sdl.Texture
+	tilesTextTextureCache map[screenCoordinates]*sdl.Texture
 }
 
 func NewSDL2AssemblyRenderer(assembly *tt.TileAssembly, sdlRenderer *sdl.Renderer) (assemblyRenderer SDL2AssemblyRenderer) {
@@ -49,6 +52,16 @@ func NewSDL2AssemblyRenderer(assembly *tt.TileAssembly, sdlRenderer *sdl.Rendere
 	assemblyRenderer.sdlRenderer = sdlRenderer
 	assemblyRenderer.tilesTextureCache = make(map[screenCoordinates]*sdl.Texture)
 	assemblyRenderer.gridTextureCache = make(map[screenCoordinates]*sdl.Texture)
+
+	// Text textures
+	assemblyRenderer.tilesTextTextureCache = make(map[screenCoordinates]*sdl.Texture)
+
+	var err error
+	assemblyRenderer.font, err = ttf.OpenFont("assets/calibri-bold.ttf", 32)
+
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("Creating assembly renderer")
 	assemblyRenderer.UpdateTextures()
@@ -104,6 +117,67 @@ func (assemblyRenderer *SDL2AssemblyRenderer) renderLocalGrid(texture *sdl.Textu
 	assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
 }
 
+// Rendering the text of tile names and glue names
+func (assemblyRenderer *SDL2AssemblyRenderer) renderTileText(texture *sdl.Texture, tile tt.SquareGlues, tilePos tt.Vec2Di) {
+
+	screenCoord := assemblyPosToScreenCoordinates(tilePos)
+	textureLeftCornerCoord := getTileTextureLeftCornerCoord(tilePos)
+
+	coordInTexture := textureCoordinates{screenCoord[0] - textureLeftCornerCoord[0], screenCoord[1] - textureLeftCornerCoord[1]}
+
+	successiveSquareVertices := [4][2]int32{{
+		int32(coordInTexture[0]), int32(coordInTexture[1] + TILE_SIZE)}, {int32(coordInTexture[0] + TILE_SIZE), int32(coordInTexture[1] + TILE_SIZE)}, {int32(coordInTexture[0] + TILE_SIZE), int32(coordInTexture[1])}, {int32(coordInTexture[0]), int32(coordInTexture[1])}}
+
+	assemblyRenderer.font.SetStyle(ttf.STYLE_BOLD)
+
+	// Render tile name
+	tileName, err := assemblyRenderer.assembly.TileSet.GetTileName(tile)
+
+	if err == nil {
+		assemblyRenderer.sdlRenderer.SetRenderTarget(texture)
+		surfaceMessage, err := assemblyRenderer.font.RenderUTF8Solid(tileName, sdl.Color{0, 0, 0, 255})
+
+		if err != nil {
+			panic(err)
+		}
+
+		textureMessage, err := assemblyRenderer.sdlRenderer.CreateTextureFromSurface(surfaceMessage)
+		if err != nil {
+			panic(err)
+		}
+
+		assemblyRenderer.sdlRenderer.CopyExF(textureMessage, nil, &sdl.FRect{float32(coordInTexture[0]) + 3*float32(TILE_SIZE)/8, float32(coordInTexture[1]) + float32(TILE_SIZE)/4, float32(TILE_SIZE) / 4, float32(TILE_SIZE) / 2}, 0, nil, sdl.FLIP_VERTICAL)
+
+		assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
+	}
+
+	// Render tile glues
+	assemblyRenderer.sdlRenderer.SetRenderTarget(texture)
+	for i, glueName := range tile {
+
+		if glueName == tt.NULL_GLUE {
+			continue
+		}
+
+		surfaceMessage, err := assemblyRenderer.font.RenderUTF8Solid(glueName, sdl.Color{0, 101, 255, 255})
+
+		if err != nil {
+			panic(err)
+		}
+
+		textureMessage, err := assemblyRenderer.sdlRenderer.CreateTextureFromSurface(surfaceMessage)
+
+		if err != nil {
+			panic(err)
+		}
+
+		middlePoint := [2]float32{float32(successiveSquareVertices[i][0]+successiveSquareVertices[(i+1)%4][0]) / 2, float32(successiveSquareVertices[i][1]+successiveSquareVertices[(i+1)%4][1]) / 2}
+
+		assemblyRenderer.sdlRenderer.CopyExF(textureMessage, nil, &sdl.FRect{middlePoint[0] - float32(TILE_SIZE)/12, middlePoint[1] - 1.4*float32(TILE_SIZE)/12, float32(TILE_SIZE) / 6, 1.4 * float32(TILE_SIZE) / 6}, 0, nil, sdl.FLIP_VERTICAL)
+	}
+	assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
+}
+
 // Rendering the tile to the tile texture
 func (assemblyRenderer *SDL2AssemblyRenderer) renderTile(texture *sdl.Texture, tile tt.SquareGlues, tilePos tt.Vec2Di) {
 	assemblyRenderer.sdlRenderer.SetRenderTarget(texture)
@@ -151,7 +225,7 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 			var err error
 			assemblyRenderer.tilesTextureCache[textureLeftCornerCoord], err = assemblyRenderer.sdlRenderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, TEXTURE_SIZE, TEXTURE_SIZE)
 
-			fmt.Println("Creating tiles texture with bottom left corner:", textureLeftCornerCoord)
+			fmt.Println("Creating tile texture with bottom left corner:", textureLeftCornerCoord)
 
 			if err != nil {
 				panic(err)
@@ -159,7 +233,15 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 
 			assemblyRenderer.gridTextureCache[textureLeftCornerCoord], err = assemblyRenderer.sdlRenderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, TEXTURE_SIZE, TEXTURE_SIZE)
 
-			fmt.Println("Creating tiles texture with bottom left corner:", textureLeftCornerCoord)
+			fmt.Println("Creating grid texture with bottom left corner:", textureLeftCornerCoord)
+
+			if err != nil {
+				panic(err)
+			}
+
+			assemblyRenderer.tilesTextTextureCache[textureLeftCornerCoord], err = assemblyRenderer.sdlRenderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, TEXTURE_SIZE, TEXTURE_SIZE)
+
+			fmt.Println("Creating tile text texture with bottom left corner:", textureLeftCornerCoord)
 
 			if err != nil {
 				panic(err)
@@ -178,6 +260,13 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 			assemblyRenderer.sdlRenderer.SetDrawColor(0, 0, 0, 0)
 			assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{0, 0, TEXTURE_SIZE, TEXTURE_SIZE})
 			assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
+
+			// Tiles text texture
+			assemblyRenderer.tilesTextTextureCache[textureLeftCornerCoord].SetBlendMode(sdl.BLENDMODE_BLEND)
+			assemblyRenderer.sdlRenderer.SetRenderTarget(assemblyRenderer.gridTextureCache[textureLeftCornerCoord])
+			assemblyRenderer.sdlRenderer.SetDrawColor(0, 0, 0, 0)
+			assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{0, 0, TEXTURE_SIZE, TEXTURE_SIZE})
+			assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
 		}
 
 		assemblyRenderer.renderTile(assemblyRenderer.tilesTextureCache[textureLeftCornerCoord], tileAndPos.Tile, tileAndPos.Pos)
@@ -191,6 +280,9 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 		assemblyRenderer.sdlRenderer.SetScale(1, 1)
 
 		assemblyRenderer.renderLocalGrid(assemblyRenderer.gridTextureCache[textureLeftCornerCoord], tileAndPos.Pos)
+
+		// Tile text
+		assemblyRenderer.renderTileText(assemblyRenderer.tilesTextTextureCache[textureLeftCornerCoord], tileAndPos.Tile, tileAndPos.Pos)
 	}
 
 	assemblyRenderer.assembly.FlushNewlyAddedTiles()
@@ -210,18 +302,28 @@ func (assemblyRenderer *SDL2AssemblyRenderer) Render(uiParams UIParameters) {
 		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}
 
-	if !uiParams.ShowGrid {
-		return
+	// Render grid
+	if uiParams.ShowGrid {
+		for textureLeftCornerCoord, texture := range assemblyRenderer.gridTextureCache {
+
+			if !uiParams.IsInCameraView(tt.Vec2Di(textureLeftCornerCoord)) {
+				continue
+			}
+
+			assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
+		}
 	}
 
-	// Render grid
-	for textureLeftCornerCoord, texture := range assemblyRenderer.gridTextureCache {
+	// Render tile text
+	if uiParams.ShowTilesText {
+		for textureLeftCornerCoord, texture := range assemblyRenderer.tilesTextTextureCache {
 
-		if !uiParams.IsInCameraView(tt.Vec2Di(textureLeftCornerCoord)) {
-			continue
+			if !uiParams.IsInCameraView(tt.Vec2Di(textureLeftCornerCoord)) {
+				continue
+			}
+
+			assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
 		}
-
-		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}
 }
 
@@ -230,6 +332,7 @@ func (assemblyRenderer SDL2AssemblyRenderer) CountTextures() int {
 }
 
 func (assemblyRenderer *SDL2AssemblyRenderer) Destroy() {
+	assemblyRenderer.font.Close()
 	for _, texture := range assemblyRenderer.tilesTextureCache {
 		texture.Destroy()
 	}
