@@ -18,6 +18,7 @@ type CameraParameters struct {
 type UIParameters struct {
 	Camera     CameraParameters   `json:"camera"`
 	GlueColors map[string][]uint8 `json:"glue_colors"`
+	ShowGrid   bool               `json:"show_grid"`
 }
 
 func NewUIParameters() (toReturn UIParameters) {

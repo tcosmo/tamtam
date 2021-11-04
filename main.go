@@ -9,7 +9,7 @@ import (
 )
 
 func newAssembly() tt.TileAssembly {
-	SIZE := 20
+	SIZE := 200
 	tileSet, err := tt.NewCrtTileSet(2, 3)
 
 	if err != nil {
@@ -41,6 +41,26 @@ func newAssembly() tt.TileAssembly {
 	}
 
 	return assembly
+}
+
+func countNumberKeyPressed() (count int) {
+	for _, value := range sdl.GetKeyboardState() {
+		if value != 0 {
+			count += 1
+		}
+	}
+	return count
+}
+
+// Determines how much to move the camera when arrow keys are pressed
+// in units of tiles
+func translationSpeed(mod uint16) int {
+
+	if mod&sdl.KMOD_LSHIFT != 0 {
+		return 5 * (countNumberKeyPressed() - 1)
+	}
+
+	return 1
 }
 
 func main() {
@@ -94,6 +114,20 @@ func main() {
 				switch t.Type {
 				case sdl.KEYDOWN:
 					switch t.Keysym.Sym {
+
+					case sdl.K_LEFT:
+						uiParameters.Camera.Translation[0] -= ttr.TILE_SIZE * translationSpeed(t.Keysym.Mod)
+						break
+					case sdl.K_RIGHT:
+						uiParameters.Camera.Translation[0] += ttr.TILE_SIZE * translationSpeed(t.Keysym.Mod)
+						break
+					case sdl.K_UP:
+						uiParameters.Camera.Translation[1] += ttr.TILE_SIZE * translationSpeed(t.Keysym.Mod)
+						break
+					case sdl.K_DOWN:
+						uiParameters.Camera.Translation[1] -= ttr.TILE_SIZE * translationSpeed(t.Keysym.Mod)
+						break
+
 					case sdl.K_z:
 						uiParameters.Camera.ZoomFactor *= 1.5
 						break
@@ -113,22 +147,16 @@ func main() {
 						fmt.Println("Current FPS: ", 1/frameTime)
 						fmt.Println("Average FPS: ", 1000/(totalFrameTicks/totalFrames))
 						fmt.Println("Current Perf: ", framePerf)
+
+					case sdl.K_g:
+						uiParameters.ShowGrid = !uiParameters.ShowGrid
+						break
+
 					// Dumping camera parameters
 					case sdl.K_d:
 						uiParameters.DumpCamera()
 						break
-					case sdl.K_LEFT:
-						uiParameters.Camera.Translation[0] -= ttr.TILE_SIZE
-						break
-					case sdl.K_RIGHT:
-						uiParameters.Camera.Translation[0] += ttr.TILE_SIZE
-						break
-					case sdl.K_UP:
-						uiParameters.Camera.Translation[1] += ttr.TILE_SIZE
-						break
-					case sdl.K_DOWN:
-						uiParameters.Camera.Translation[1] -= ttr.TILE_SIZE
-						break
+
 					case sdl.K_ESCAPE:
 						running = false
 						break

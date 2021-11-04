@@ -37,16 +37,18 @@ type textureCoordinates tt.Vec2Di
 // which are mapped to screen positions (screenCoordinates) [-1*TILE_SIZE, 2*TILE_SIZE] and then rendered to
 // the appropriate texture, here the texture with coordinates [0,0].
 type SDL2AssemblyRenderer struct {
-	sdlRenderer  *sdl.Renderer
-	assembly     *tt.TileAssembly
-	textureCache map[screenCoordinates]*sdl.Texture
+	sdlRenderer       *sdl.Renderer
+	assembly          *tt.TileAssembly
+	tilesTextureCache map[screenCoordinates]*sdl.Texture
+	gridTextureCache  map[screenCoordinates]*sdl.Texture
 }
 
 func NewSDL2AssemblyRenderer(assembly *tt.TileAssembly, sdlRenderer *sdl.Renderer) (assemblyRenderer SDL2AssemblyRenderer) {
 
 	assemblyRenderer.assembly = assembly
 	assemblyRenderer.sdlRenderer = sdlRenderer
-	assemblyRenderer.textureCache = make(map[screenCoordinates]*sdl.Texture)
+	assemblyRenderer.tilesTextureCache = make(map[screenCoordinates]*sdl.Texture)
+	assemblyRenderer.gridTextureCache = make(map[screenCoordinates]*sdl.Texture)
 
 	fmt.Println("Creating assembly renderer")
 	assemblyRenderer.UpdateTextures()
@@ -76,7 +78,33 @@ func getTileTextureLeftCornerCoord(tilePos tt.Vec2Di) screenCoordinates {
 	return screenCoordinates{(screenCoord[0]/TEXTURE_SIZE + modX) * TEXTURE_SIZE, (screenCoord[1]/TEXTURE_SIZE + modY) * TEXTURE_SIZE}
 }
 
-// Rendering the tile to the texture assuming it exists
+// Rendering local grid elements of a tile to the grid texture
+func (assemblyRenderer *SDL2AssemblyRenderer) renderLocalGrid(texture *sdl.Texture, tilePos tt.Vec2Di) {
+
+	screenCoord := assemblyPosToScreenCoordinates(tilePos)
+	textureLeftCornerCoord := getTileTextureLeftCornerCoord(tilePos)
+
+	coordInTexture := textureCoordinates{screenCoord[0] - textureLeftCornerCoord[0], screenCoord[1] - textureLeftCornerCoord[1]}
+
+	successiveSquareVertices := [4][2]int32{{
+		int32(coordInTexture[0]), int32(coordInTexture[1] + TILE_SIZE)}, {int32(coordInTexture[0] + TILE_SIZE), int32(coordInTexture[1] + TILE_SIZE)}, {int32(coordInTexture[0] + TILE_SIZE), int32(coordInTexture[1])}, {int32(coordInTexture[0]), int32(coordInTexture[1])}}
+
+	assemblyRenderer.sdlRenderer.SetRenderTarget(texture)
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, 0, 0, 0, 255)
+
+	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, 0, 0, 0, 255)
+	assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
+}
+
+// Rendering the tile to the tile texture
 func (assemblyRenderer *SDL2AssemblyRenderer) renderTile(texture *sdl.Texture, tile tt.SquareGlues, tilePos tt.Vec2Di) {
 	assemblyRenderer.sdlRenderer.SetRenderTarget(texture)
 
@@ -106,28 +134,11 @@ func (assemblyRenderer *SDL2AssemblyRenderer) renderTile(texture *sdl.Texture, t
 
 		assemblyRenderer.sdlRenderer.SetDrawColor(0, 255, 0, 255)
 
-		assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{0, 0, TILE_SIZE, TILE_SIZE})
-
 		if glue != tt.NULL_GLUE {
 			gfx.FilledTrigonRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[i][0], successiveSquareVertices[i][1], successiveSquareVertices[(i+1)%4][0], successiveSquareVertices[(i+1)%4][1], int32(coordInTexture[0]+TILE_SIZE/2), int32(coordInTexture[1]+TILE_SIZE/2), color[0], color[1], color[2], color[3])
-
-			// gfx.TrigonRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[i][0], successiveSquareVertices[i][1], successiveSquareVertices[(i+1)%4][0], successiveSquareVertices[(i+1)%4][1], int32(coordInTexture[0]+TILE_SIZE/2), int32(coordInTexture[1]+TILE_SIZE/2), 0, 0, 0, color[3])
-
 		}
 
 	}
-
-	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, 0, 0, 0, 255)
-
-	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, 0, 0, 0, 255)
-
-	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, 0, 0, 0, 255)
-
-	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[2][0]-1, successiveSquareVertices[2][1]+1, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, 0, 0, 0, 255)
-
-	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, successiveSquareVertices[0][0]+1, successiveSquareVertices[0][1]-1, 0, 0, 0, 255)
-
-	gfx.LineRGBA(assemblyRenderer.sdlRenderer, successiveSquareVertices[1][0]-1, successiveSquareVertices[1][1]-1, successiveSquareVertices[3][0]+1, successiveSquareVertices[3][1]+1, 0, 0, 0, 255)
 
 	assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
 }
@@ -136,23 +147,50 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 	for _, tileAndPos := range assemblyRenderer.assembly.GetNewlyAddedTiles() {
 		textureLeftCornerCoord := getTileTextureLeftCornerCoord(tileAndPos.Pos)
 		// If the texture does not exists we create it
-		if _, ok := assemblyRenderer.textureCache[textureLeftCornerCoord]; !ok {
+		if _, ok := assemblyRenderer.tilesTextureCache[textureLeftCornerCoord]; !ok {
 			var err error
-			assemblyRenderer.textureCache[textureLeftCornerCoord], err = assemblyRenderer.sdlRenderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, TEXTURE_SIZE, TEXTURE_SIZE)
+			assemblyRenderer.tilesTextureCache[textureLeftCornerCoord], err = assemblyRenderer.sdlRenderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, TEXTURE_SIZE, TEXTURE_SIZE)
 
-			fmt.Println("Creating texture with bottom left corner:", textureLeftCornerCoord)
+			fmt.Println("Creating tiles texture with bottom left corner:", textureLeftCornerCoord)
 
 			if err != nil {
 				panic(err)
 			}
 
-			assemblyRenderer.sdlRenderer.SetRenderTarget(assemblyRenderer.textureCache[textureLeftCornerCoord])
+			assemblyRenderer.gridTextureCache[textureLeftCornerCoord], err = assemblyRenderer.sdlRenderer.CreateTexture(sdl.PIXELFORMAT_RGBA8888, sdl.TEXTUREACCESS_TARGET, TEXTURE_SIZE, TEXTURE_SIZE)
+
+			fmt.Println("Creating tiles texture with bottom left corner:", textureLeftCornerCoord)
+
+			if err != nil {
+				panic(err)
+			}
+
+			// Tiles texture
+			assemblyRenderer.sdlRenderer.SetRenderTarget(assemblyRenderer.tilesTextureCache[textureLeftCornerCoord])
 			assemblyRenderer.sdlRenderer.SetDrawColor(100, 0, 0, BACKGROUND_COLOR[3])
+			assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{0, 0, TEXTURE_SIZE, TEXTURE_SIZE})
+
+			assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
+
+			// Grid texture
+			assemblyRenderer.gridTextureCache[textureLeftCornerCoord].SetBlendMode(sdl.BLENDMODE_BLEND)
+			assemblyRenderer.sdlRenderer.SetRenderTarget(assemblyRenderer.gridTextureCache[textureLeftCornerCoord])
+			assemblyRenderer.sdlRenderer.SetDrawColor(0, 0, 0, 0)
 			assemblyRenderer.sdlRenderer.FillRect(&sdl.Rect{0, 0, TEXTURE_SIZE, TEXTURE_SIZE})
 			assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
 		}
 
-		assemblyRenderer.renderTile(assemblyRenderer.textureCache[textureLeftCornerCoord], tileAndPos.Tile, tileAndPos.Pos)
+		assemblyRenderer.renderTile(assemblyRenderer.tilesTextureCache[textureLeftCornerCoord], tileAndPos.Tile, tileAndPos.Pos)
+
+		// For debug
+		assemblyRenderer.sdlRenderer.SetRenderTarget(assemblyRenderer.tilesTextureCache[textureLeftCornerCoord])
+		assemblyRenderer.sdlRenderer.SetDrawColor(0, 100, 100, 255)
+		assemblyRenderer.sdlRenderer.SetScale(2, 2)
+		assemblyRenderer.sdlRenderer.DrawRect(&sdl.Rect{0, 0, TILE_SIZE / 2, TILE_SIZE / 2})
+		assemblyRenderer.sdlRenderer.SetRenderTarget(nil)
+		assemblyRenderer.sdlRenderer.SetScale(1, 1)
+
+		assemblyRenderer.renderLocalGrid(assemblyRenderer.gridTextureCache[textureLeftCornerCoord], tileAndPos.Pos)
 	}
 
 	assemblyRenderer.assembly.FlushNewlyAddedTiles()
@@ -161,18 +199,33 @@ func (assemblyRenderer *SDL2AssemblyRenderer) UpdateTextures() {
 // Rendering the scene and correcting here the difference in convention
 // between our screen coordinates and SDL's.
 func (assemblyRenderer *SDL2AssemblyRenderer) Render(uiParams UIParameters) {
-	for textureLeftCornerCoord, texture := range assemblyRenderer.textureCache {
+
+	// Render tiles
+	for textureLeftCornerCoord, texture := range assemblyRenderer.tilesTextureCache {
+
+		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
+	}
+
+	if !uiParams.ShowGrid {
+		return
+	}
+
+	// Render grid
+	for textureLeftCornerCoord, texture := range assemblyRenderer.gridTextureCache {
 
 		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}
 }
 
 func (assemblyRenderer SDL2AssemblyRenderer) CountTextures() int {
-	return len(assemblyRenderer.textureCache)
+	return len(assemblyRenderer.tilesTextureCache)
 }
 
 func (assemblyRenderer *SDL2AssemblyRenderer) Destroy() {
-	for _, texture := range assemblyRenderer.textureCache {
+	for _, texture := range assemblyRenderer.tilesTextureCache {
+		texture.Destroy()
+	}
+	for _, texture := range assemblyRenderer.gridTextureCache {
 		texture.Destroy()
 	}
 }
