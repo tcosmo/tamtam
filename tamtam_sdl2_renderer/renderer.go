@@ -203,6 +203,10 @@ func (assemblyRenderer *SDL2AssemblyRenderer) Render(uiParams UIParameters) {
 	// Render tiles
 	for textureLeftCornerCoord, texture := range assemblyRenderer.tilesTextureCache {
 
+		if !uiParams.IsInCameraView(tt.Vec2Di(textureLeftCornerCoord)) {
+			continue
+		}
+
 		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}
 
@@ -212,6 +216,10 @@ func (assemblyRenderer *SDL2AssemblyRenderer) Render(uiParams UIParameters) {
 
 	// Render grid
 	for textureLeftCornerCoord, texture := range assemblyRenderer.gridTextureCache {
+
+		if !uiParams.IsInCameraView(tt.Vec2Di(textureLeftCornerCoord)) {
+			continue
+		}
 
 		assemblyRenderer.sdlRenderer.CopyExF(texture, nil, &sdl.FRect{float32(textureLeftCornerCoord[0]-uiParams.Camera.Translation[0]) * uiParams.Camera.ZoomFactor, float32(-1*textureLeftCornerCoord[1]+uiParams.Camera.Translation[1]) * uiParams.Camera.ZoomFactor, float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor), float32(TEXTURE_SIZE * uiParams.Camera.ZoomFactor)}, 0, nil, sdl.FLIP_VERTICAL)
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 func newAssembly() tt.TileAssembly {
-	SIZE := 200
+	SIZE := 20
 	tileSet, err := tt.NewCrtTileSet(2, 3)
 
 	if err != nil {

@@ -65,3 +65,11 @@ func (uiParams UIParameters) DumpCamera() {
 		return
 	}
 }
+
+// Returns true if the screen coordinate is within the camera view
+func (uiParams UIParameters) IsInCameraView(pos tt.Vec2Di) bool {
+
+	// TODO
+	return true
+
+}
